@@ -1,32 +1,112 @@
 const express = require('express');
 const router = express.Router();
-const Queue = require('../models/Queue');
-const User = require('../models/User');
 const auth = require('../middleware/auth');
+const Queue = require('../models/Queue');
+const Staff = require('../models/Staff');
 
-router.get('/', auth, async (req, res) => {
+// @route   POST api/queue
+// @desc    Create a queue
+// @access  Private
+router.post('/', auth, async (req, res) => {
+  const { name, estimatedTime, assignedStaff } = req.body;
+
   try {
-    const queue = await Queue.find().populate('userId', 'phone').sort({ position: 1 });
+    // Validate name
+    if (!name) {
+      return res.status(400).json({ msg: 'Queue name is required' });
+    }
+
+    // Validate assignedStaff (if provided)
+    let validatedStaff = [];
+    if (assignedStaff && Array.isArray(assignedStaff)) {
+      const staffExists = await Staff.find({ '_id': { $in: assignedStaff } });
+      if (staffExists.length !== assignedStaff.length) {
+        return res.status(400).json({ msg: 'One or more staff IDs are invalid' });
+      }
+      validatedStaff = assignedStaff;
+    }
+
+    const queue = new Queue({
+      name,
+      estimatedTime: estimatedTime ? Number(estimatedTime) : undefined,
+      assignedStaff: validatedStaff,
+    });
+
+    await queue.save();
+    await queue.populate('assignedStaff', 'name');
     res.json(queue);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
+// @route   GET api/queue
+// @desc    Get all queues
+// @access  Private
+router.get('/', auth, async (req, res) => {
+  try {
+    const queues = await Queue.find().populate('assignedStaff', 'name');
+    res.json(queues);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/queue/:id
+// @desc    Update a queue
+// @access  Private
+router.put('/:id', auth, async (req, res) => {
+  const { name, estimatedTime, assignedStaff } = req.body;
+
+  try {
+    let queue = await Queue.findById(req.params.id);
+    if (!queue) {
+      return res.status(404).json({ msg: 'Queue not found' });
+    }
+
+    // Update fields
+    if (name) queue.name = name;
+    if (estimatedTime !== undefined) {
+      queue.estimatedTime = estimatedTime ? Number(estimatedTime) : undefined;
+    }
+    if (assignedStaff !== undefined) {
+      let validatedStaff = [];
+      if (Array.isArray(assignedStaff)) {
+        const staffExists = await Staff.find({ '_id': { $in: assignedStaff } });
+        if (staffExists.length !== assignedStaff.length) {
+          return res.status(400).json({ msg: 'One or more staff IDs are invalid' });
+        }
+        validatedStaff = assignedStaff;
+      }
+      queue.assignedStaff = validatedStaff;
+    }
+
+    await queue.save();
+    await queue.populate('assignedStaff', 'name');
+    res.json(queue);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE api/queue/:id
+// @desc    Delete a queue
+// @access  Private
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await Queue.findByIdAndDelete(req.params.id);
-    const queue = await Queue.find().sort({ position: 1 });
-    for (let i = 0; i < queue.length; i++) {
-      queue[i].position = i + 1;
-      queue[i].estimatedWaitTime = queue[i].position * 5;
-      await queue[i].save();
+    const queue = await Queue.findById(req.params.id);
+    if (!queue) {
+      return res.status(404).json({ msg: 'Queue not found' });
     }
-    res.json({ message: 'Queue entry removed' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+
+    await queue.deleteOne();
+    res.json({ msg: 'Queue removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 

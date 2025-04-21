@@ -29,6 +29,9 @@ router.post('/checkin', async (req, res) => {
       userId: user._id,
       position,
       estimatedWaitTime,
+      customerName: user.name,
+      name: user.name,
+      customerPhone: user.phone,
     });
     await queueEntry.save();
 
@@ -36,6 +39,8 @@ router.post('/checkin', async (req, res) => {
       rewardPoints: user.rewardPoints,
       queuePosition: position,
       estimatedWaitTime,
+      customerName: user.name,
+      customerPhone: user.phone,
     });
   } catch (error) {
     console.error(error);
@@ -53,6 +58,8 @@ router.get('/user/:phone', async (req, res) => {
       rewardPoints: user.rewardPoints,
       queuePosition: queueEntry ? queueEntry.position : null,
       estimatedWaitTime: queueEntry ? queueEntry.estimatedWaitTime : null,
+      customerName: user.name,
+      customerPhone: user.phone,
     });
   } catch (error) {
     console.error(error);
@@ -64,6 +71,59 @@ router.get('/users', auth, async (req, res) => {
   try {
     const users = await User.find();
     res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all check-ins
+router.get('/', auth, async (req, res) => {
+  try {
+    const checkIns = await CheckIn.find().populate('userId', 'phone name');
+    res.json(checkIns);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update a check-in
+router.put('/:id', auth, async (req, res) => {
+  const { rewardPointsEarned } = req.body;
+  try {
+    const checkIn = await CheckIn.findById(req.params.id);
+    if (!checkIn) return res.status(404).json({ message: 'Check-in not found' });
+
+    checkIn.rewardPointsEarned = rewardPointsEarned !== undefined ? rewardPointsEarned : checkIn.rewardPointsEarned;
+    await checkIn.save();
+
+    // Update user's reward points
+    const user = await User.findById(checkIn.userId);
+    const oldPoints = await CheckIn.findById(req.params.id).select('rewardPointsEarned');
+    user.rewardPoints = user.rewardPoints - oldPoints.rewardPointsEarned + checkIn.rewardPointsEarned;
+    await user.save();
+
+    res.json(checkIn);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a check-in
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const checkIn = await CheckIn.findById(req.params.id);
+    if (!checkIn) return res.status(404).json({ message: 'Check-in not found' });
+
+    // Subtract points from user
+    const user = await User.findById(checkIn.userId);
+    user.rewardPoints -= checkIn.rewardPointsEarned;
+    await user.save();
+
+    await CheckIn.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Check-in deleted' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });

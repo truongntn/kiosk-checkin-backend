@@ -1,12 +1,13 @@
 # Kiosk Check-In Backend
 
-Backend for the kiosk-checkin app, built with Node.js, MongoDB, and an admin dashboard using Horizon UI (React).
+Backend and admin dashboard for the kiosk-checkin app, built with Node.js, MongoDB, and Horizon UI Chakra (React).
 
 ## Features
-- User check-in via phone number
-- Reward points tracking (10 points per check-in)
+- User check-in via phone number (frontend at https://github.com/truongntn/kiosk-checkin)
+- Reward points tracking (10 points per check-in by default)
 - Queue management with estimated wait times
-- Admin dashboard to view users, queue, and analytics
+- Admin dashboard to manage users, check-ins, reward points, and queue
+- CRUD operations for users and check-in transactions
 
 ## Prerequisites
 - Node.js (>=14.x)

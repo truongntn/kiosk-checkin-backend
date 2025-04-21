@@ -1,18 +1,17 @@
-// src/models/Queue.js
 const mongoose = require('mongoose');
 
-const queueSchema = new mongoose.Schema({
+const staffSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
   },
-  estimatedTime: {
-    type: Number,
+  email: {
+    type: String,
   },
-  assignedStaff: [
+  assignedQueues: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Staff',
+      ref: 'Queue',
     },
   ],
   createdAt: {
@@ -21,4 +20,4 @@ const queueSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model('Queue', queueSchema);
+module.exports = mongoose.model('Staff', staffSchema);
