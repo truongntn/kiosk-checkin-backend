@@ -16,6 +16,7 @@ connectDB();
 app.use(
   cors({
     origin: [
+      "https://kiosk-checkin.vercel.app/",
       "https://kiosk-checkin-htaax9gbc-truongntns-projects.vercel.app",
       "http://localhost:3000",
       "http://localhost:3001",
