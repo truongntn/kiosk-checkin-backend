@@ -33,29 +33,47 @@ const APP_PASSWORD = "Fansynails@2025"; // Application Password from WordPress
 const API_BASE = `${WP_URL}/wp-json/wp/v2`; // Base URL for WordPress REST API
 // Create an Axios instance with Basic Auth for Application Password
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: WP_URL,
   auth: {
     username: USERNAME,
     password: APP_PASSWORD,
   },
 });
-// Function to fetch BookingPress appointments (hypothetical endpoint)
-async function getBookingPressAppointments() {
+// Function to fetch BookingPress services
+async function getBookingPressServices() {
   try {
-    // Replace with actual BookingPress endpoint, e.g., /wp-json/bookingpress/v1/appointments
-    const response = await api.get("/bookingpress_appointments"); // Hypothetical custom post type
-    console.log("Appointments:", response.data);
+    // Replace with actual BookingPress endpoint, e.g., /bookingpress/v1/appointments
+  console.log();
+    const response = await api.get('/wp-json/mo/v1/get-booking-services'); // Hypothetical endpoint
+    console.log('Services:', response.data);
     return response.data;
   } catch (error) {
-    console.error(
-      "Error fetching appointments:",
-      error.response ? error.response.data : error.message
-    );
+    console.error('Error fetching services:', {
+      message: error.response ? error.response.data : error.message,
+      status: error.response ? error.response.status : null,
+      url: error.config ? error.config.url : null,
+    });
+    throw error;
+  }
+}
+// Function to fetch BookingPress appointments
+async function getBookingPressAppointments() {
+  try {
+    // Replace with actual BookingPress endpoint, e.g., /bookingpress/v1/appointments
+    const response = await api.get('/bookingpress/v1/appointments'); // Hypothetical endpoint
+    console.log('Appointments:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching appointments:', {
+      message: error.response ? error.response.data : error.message,
+      status: error.response ? error.response.status : null,
+      url: error.config ? error.config.url : null,
+    });
     throw error;
   }
 }
 // Function to create a new appointment (hypothetical)
-async function createBookingPressAppointment(appointmentData) {
+async function createBookingPressAppointment1(appointmentData) {
   try {
     // Replace with actual BookingPress endpoint for creating appointments
     const response = await api.post("/bookingpress_appointments", {
@@ -77,6 +95,46 @@ async function createBookingPressAppointment(appointmentData) {
   }
 }
 
+async function createBookingPressAppointment(appointmentData) {
+  try {
+    // Use current date (2025-05-30) for appointment_date
+    const currentDate = new Date();
+    const formattedDate = currentDate.toISOString().split('T')[0]; // "2025-05-30"
+
+    // Use current time (11:13) for appointment_time
+    const hours = String(currentDate.getHours()).padStart(2, '0');
+    const minutes = String(currentDate.getMinutes()).padStart(2, '0');
+    const appointmentTime = `${hours}:${minutes}`; // "11:13"
+
+    // Validate time format (HH:MM)
+    if (!/^\d{2}:\d{2}$/.test(appointmentTime)) {
+      throw new Error('Invalid time format. Use HH:MM.');
+    }
+
+    // Replace with actual BookingPress endpoint for creating appointments
+    const response = await axios.post(WP_URL + "/wp-json/bookingpress/v1/add-booking", {
+      service_id: 35, // "General Appointment"
+      customer_phone: appointmentData.customer_phone,
+      customer_name: appointmentData.customer_phone, 
+      customer_firstname: appointmentData.customer_phone, 
+      customer_lastname: "",
+      appointment_date: formattedDate, 
+      appointment_time: appointmentTime,
+      payment_amount: 0.0,
+      payment_status: "pending",
+    });
+    console.log("Created Appointment:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error creating appointment:",
+      error.response ? error.response.data : error.message
+    );
+    throw error;
+  }
+}
+
+
 app.use("/api/auth", authRoutes);
 app.use("/api/checkin", checkInRoutes);
 app.use("/api/queues", queueRoutes);
@@ -96,6 +154,25 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 app.get('/', async (req, res) =>  {
-  await getBookingPressAppointments();
-  res.send('...')
+  res.send('API server is running successfully!');
 })
+
+app.post('/createBooking', async (req, res) => {
+  try {
+    const { customer_phone } = req.body;
+
+    if (!customer_phone) {
+      return res.status(400).json({ status: 'error', message: 'Missing required field: customer_phone' });
+    }
+
+    const appointmentData = {
+      customer_phone: customer_phone,
+    };
+
+    const result = await createBookingPressAppointment(appointmentData);
+    res.status(200).json({ status: 'success', message: 'Booking created', data: result });
+  } catch (error) {
+    console.error('POST / error:', error.message);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
